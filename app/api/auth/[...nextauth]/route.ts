@@ -1,39 +1,45 @@
-import NextAuth, { NextAuthOptions } from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
+import NextAuth, { NextAuthOptions } from 'next-auth';
+import CredentialsProvider from "next-auth/providers/credentials";
 
-// Kita export authOptions biar bisa dipanggil di Server Component (Dashboard)
 export const authOptions: NextAuthOptions = {
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID as string,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-      authorization: {
-        params: {
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code",
-          scope: "openid email profile https://www.googleapis.com/auth/drive.readonly"
+    CredentialsProvider({
+      name: 'System Admin',
+      credentials: {
+        // KITA KEMBALIKAN KE 'password' KARENA NEXTAUTH KADANG NGE-BUG DI CUSTOM KEY
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        // Jaring pengaman: Kalau env lu nge-bug, dia bakal tetep baca PIN asli lu
+        const adminPw = process.env.ADMIN_PASSWORD || '123baebayu';
+        const inputPw = credentials?.password || '';
+
+        if (inputPw === adminPw) {
+          return {
+            id: 'admin-1',
+            name: 'Administrator',
+            email: 'admin@bydrive.local',
+            role: 'admin'
+          };
         }
+        return null; // Kalau salah, tolak
       }
-    }),
+    })
   ],
-  session: {
-    strategy: "jwt",
-    maxAge: 10 * 365 * 24 * 60 * 60, // 10 tahun (Selamanya)
-  },
+  session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
   callbacks: {
-    async jwt({ token, account }) {
-      if (account) {
-        token.accessToken = account.access_token;
-      }
+    async jwt({ token, user }) {
+      if (user) { token.role = (user as any).role; }
       return token;
     },
-    async session({ session, token }) {
-      // Supaya token bisa dibaca di Dashboard
-      session.accessToken = token.accessToken as string; 
+    async session({ session, token }: any) {
+      if (session.user) { (session.user as any).role = token.role; }
       return session;
     }
-  }
+  },
+  pages: { signIn: '/' }, 
+  // Jaring pengaman secret
+  secret: process.env.NEXTAUTH_SECRET || '123bytheking', 
 };
 
 const handler = NextAuth(authOptions);

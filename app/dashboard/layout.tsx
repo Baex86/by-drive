@@ -9,6 +9,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  // FUNGSI NUKE: Hapus Redis & Logout
+  const handleHardReset = async () => {
+    const confirmNuke = confirm("PERINGATAN: Ini akan menghapus SEMUA token Google Drive yang tersambung dari server dan mengeluarkan Anda dari sistem. Lanjutkan?");
+    
+    if (confirmNuke) {
+      try {
+        await fetch('/api/auth/nuke', { method: 'POST' });
+        signOut({ callbackUrl: '/' }); 
+      } catch (error) {
+        console.error("Gagal melakukan reset:", error);
+        alert("Gagal melakukan reset sistem.");
+      }
+    }
+  };
+
   const menuItems = [
     { name: 'Dashboard', path: '/dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
     { name: 'File Manager', path: '/dashboard/files', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z' },
@@ -54,14 +69,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
+        {/* PROFIL BAWAH YANG SUDAH DI-UPDATE JADI TOMBOL NUKE */}
         <div className="p-4 border-t border-white/10">
-          <div className="flex items-center">
-            <div className="w-10 h-10 shrink-0 rounded-lg bg-white/10 flex items-center justify-center text-sm font-bold cursor-pointer hover:bg-red-500/20 transition-colors" onClick={() => signOut({ callbackUrl: '/' })} title="Sign Out">
+          <div 
+            className="flex items-center cursor-pointer p-2 rounded-xl hover:bg-red-900/40 transition-colors group" 
+            onClick={handleHardReset} 
+            title="Hard Reset & Sign Out"
+          >
+            <div className="w-10 h-10 shrink-0 rounded-lg bg-white/10 flex items-center justify-center text-sm font-bold group-hover:bg-red-500/80 transition-colors">
               {session?.user?.name?.charAt(0) || 'B'}
             </div>
             <div className={`ml-3 overflow-hidden whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-32 opacity-100'}`}>
-              <p className="text-sm font-medium truncate">{session?.user?.name || 'Administrator'}</p>
-              <p className="text-xs text-white/50 truncate">{session?.user?.email}</p>
+              <p className="text-sm font-medium truncate group-hover:text-red-400 transition-colors">{session?.user?.name || 'Administrator'}</p>
+              <p className="text-xs text-white/50 truncate group-hover:text-red-300 transition-colors">Reset & Logout</p>
             </div>
           </div>
         </div>

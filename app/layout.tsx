@@ -4,7 +4,7 @@ import AuthProvider from './AuthProvider';
 
 export const metadata: Metadata = {
   title: 'BY Drive',
-  description: 'Super Drive Aggregator',
+  description: 'Super Drive Aggregator System',
 };
 
 export default function RootLayout({
@@ -13,8 +13,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="id">
+      <body className="antialiased">
         <AuthProvider>
           {children}
         </AuthProvider>

@@ -13,17 +13,14 @@ function formatBytes(bytes: number, decimals = 2) {
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
-  
   const [storageData, setStorageData] = useState<any>(null);
   const [linkedAccounts, setLinkedAccounts] = useState<any[]>([]);
   const [statsData, setStatsData] = useState<any>({ video: 0, compressed: 0, image: 0, document: 0 });
   const [apiError, setApiError] = useState(false);
-  
   const [isLoadingStorage, setIsLoadingStorage] = useState(true);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
 
-  // Tarik Agregasi Kuota
   const fetchStorage = async () => {
     try {
       const res = await fetch('/api/drive/quota');
@@ -39,7 +36,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Tarik Agregasi Distribusi File
   const fetchStats = async () => {
     try {
       const res = await fetch('/api/drive/stats');
@@ -54,7 +50,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Tarik Daftar Akun
   const fetchAccounts = async () => {
     try {
       const res = await fetch('/api/accounts');
@@ -98,10 +93,7 @@ export default function DashboardPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Kolom Kiri & Tengah */}
         <div className="lg:col-span-2 space-y-6">
-          
           {/* Widget 1: Total Storage */}
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
             <div className="flex justify-between items-center mb-6">
@@ -126,20 +118,20 @@ export default function DashboardPage() {
 
           {/* Widget 2: File Breakdown */}
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
-             <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-bold text-gray-800">Distribusi File</h3>
               <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-1 rounded">Live Data</span>
             </div>
-             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-               <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-center"><p className="text-2xl mb-2">🎥</p><p className="text-xs text-gray-400 font-bold">VIDEO</p><p className="text-lg font-bold text-gray-800 mt-1">{isLoadingStats ? '...' : statsData.video}</p></div>
-               <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-center"><p className="text-2xl mb-2">📦</p><p className="text-xs text-gray-400 font-bold">COMPRESSED</p><p className="text-lg font-bold text-gray-800 mt-1">{isLoadingStats ? '...' : statsData.compressed}</p></div>
-               <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-center"><p className="text-2xl mb-2">🖼️</p><p className="text-xs text-gray-400 font-bold">GAMBAR</p><p className="text-lg font-bold text-gray-800 mt-1">{isLoadingStats ? '...' : statsData.image}</p></div>
-               <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-center"><p className="text-2xl mb-2">📄</p><p className="text-xs text-gray-400 font-bold">DOKUMEN</p><p className="text-lg font-bold text-gray-800 mt-1">{isLoadingStats ? '...' : statsData.document}</p></div>
-             </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-center"><p className="text-2xl mb-2">🎥</p><p className="text-xs text-gray-400 font-bold">VIDEO</p><p className="text-lg font-bold text-gray-800 mt-1">{isLoadingStats ? '...' : statsData.video}</p></div>
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-center"><p className="text-2xl mb-2">📦</p><p className="text-xs text-gray-400 font-bold">COMPRESSED</p><p className="text-lg font-bold text-gray-800 mt-1">{isLoadingStats ? '...' : statsData.compressed}</p></div>
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-center"><p className="text-2xl mb-2">🖼️</p><p className="text-xs text-gray-400 font-bold">GAMBAR</p><p className="text-lg font-bold text-gray-800 mt-1">{isLoadingStats ? '...' : statsData.image}</p></div>
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-center"><p className="text-2xl mb-2">📄</p><p className="text-xs text-gray-400 font-bold">DOKUMEN</p><p className="text-lg font-bold text-gray-800 mt-1">{isLoadingStats ? '...' : statsData.document}</p></div>
+            </div>
           </div>
         </div>
 
-        {/* Kolom Kanan: Account Roster */}
+        {/* Kolom Kanan: Account Roster (TANPA ADMIN LOKAL) */}
         <div className="lg:col-span-1">
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 h-full flex flex-col">
             <div className="flex justify-between items-center mb-6">
@@ -151,30 +143,20 @@ export default function DashboardPage() {
             </div>
             
             <div className="space-y-3 flex-1">
-              <div className="flex items-center p-3 bg-green-50 rounded-xl border border-green-100">
-                <div className="w-10 h-10 rounded-full bg-green-200 flex items-center justify-center text-green-700 font-bold shrink-0">
-                  {session?.user?.email?.charAt(0).toUpperCase()}
-                </div>
-                <div className="ml-3 overflow-hidden">
-                  <p className="text-sm font-bold text-gray-800 truncate">{session?.user?.email}</p>
-                  <div className="flex items-center mt-1">
-                    <span className="text-[10px] bg-green-200 text-green-800 px-2 py-0.5 rounded uppercase font-bold">Utama</span>
-                  </div>
-                </div>
-              </div>
-
               {isLoadingAccounts ? (
                 <div className="p-3 text-center text-xs text-gray-400 animate-pulse">Memuat...</div>
               ) : (
                 linkedAccounts.map((acc, idx) => (
-                  <div key={idx} className="flex items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold shrink-0">
+                  <div key={idx} className={`flex items-center p-3 rounded-xl border ${idx === 0 ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-100'}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 ${idx === 0 ? 'bg-green-200 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                       {acc.email.charAt(0).toUpperCase()}
                     </div>
                     <div className="ml-3 overflow-hidden">
                       <p className="text-sm font-bold text-gray-800 truncate">{acc.email}</p>
                       <div className="flex items-center mt-1">
-                        <span className="text-[10px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded uppercase font-bold">Secondary</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold ${idx === 0 ? 'bg-green-200 text-green-800' : 'bg-gray-200 text-gray-600'}`}>
+                          {idx === 0 ? 'Utama' : 'Secondary'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -189,7 +171,6 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
-
       </div>
     </div>
   );
