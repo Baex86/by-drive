@@ -1,9 +1,10 @@
 'use client';
+import { Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function SettingsPage() {
+function SettingsContent() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const [isReadOnly, setIsReadOnly] = useState(false);
@@ -184,5 +185,14 @@ export default function SettingsPage() {
       {/* BLOK 3: System Telemetry */}
       {/* ... (Blok Redis & Versi) ... */}
     </div>
+  );
+}
+
+// INI MESIN PEMBUNGKUS BARUNYA
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div className="p-10 flex flex-col items-center justify-center text-gray-400 h-full"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2A0510] mb-4"></div>Memuat modul pengaturan...</div>}>
+      <SettingsContent />
+    </Suspense>
   );
 }
