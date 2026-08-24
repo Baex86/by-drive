@@ -2,12 +2,12 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link'; // Import Link dari Next.js
 
 export default function Gatekeeper() {
   const [passcode, setPasscode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
   // State baru untuk nahan user kalau belum setup Google
   const [needsSetup, setNeedsSetup] = useState(false);
   const router = useRouter();
@@ -20,7 +20,7 @@ export default function Gatekeeper() {
     // 1. Validasi PIN ke NextAuth
     const resAdmin = await signIn('credentials', {
       redirect: false,
-      password: passcode, 
+      password: passcode,
     });
 
     if (resAdmin && !resAdmin.error) {
@@ -28,7 +28,7 @@ export default function Gatekeeper() {
       try {
         const accRes = await fetch('/api/accounts');
         const accData = await accRes.json();
-
+        
         if (accData.accounts && accData.accounts.length > 0) {
           // Udah ada token Google -> Bablas Dashboard
           router.push('/dashboard');
@@ -62,7 +62,6 @@ export default function Gatekeeper() {
     } catch (err) {
       setError('Koneksi sistem terputus');
     }
-
     setLoading(false);
   };
 
@@ -109,6 +108,19 @@ export default function Gatekeeper() {
                 >
                   {loading ? 'Memverifikasi...' : 'Masuk ke Sistem'}
                 </button>
+
+                {/* TAUTAN LEGAL (PRIVACY & TERMS) */}
+                <div className="pt-2 text-center text-xs text-gray-400">
+                  Dengan masuk, Anda menyetujui{' '}
+                  <Link href="/terms" className="underline hover:text-[#2A0510] transition-colors">
+                    Terms of Service
+                  </Link>
+                  {' '}dan{' '}
+                  <Link href="/privacy" className="underline hover:text-[#2A0510] transition-colors">
+                    Privacy Policy
+                  </Link>
+                  {' '}sistem ini.
+                </div>
               </form>
             </>
           ) : (

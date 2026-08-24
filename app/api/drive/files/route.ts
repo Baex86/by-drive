@@ -7,26 +7,56 @@ import Redis from 'ioredis';
 export const dynamic = 'force-dynamic';
 const redis = new Redis(process.env.REDIS_URL as string);
 
-async function fetchFilesFromNode(accessToken: string, email: string, pageToken?: string, sortKey: string = "modifiedTime", sortDir: string = "desc", category: string = "Semua") {
+async function fetchFilesFromNode(
+  accessToken: string, 
+  refreshToken: string, 
+  email: string, 
+  pageToken?: string, 
+  sortKey: string = "modifiedTime", 
+  sortDir: string = "desc", 
+  category: string = "Semua", 
+  folderId?: string | null
+) {
   try {
-    const oauth2Client = new google.auth.OAuth2();
-    oauth2Client.setCredentials({ access_token: accessToken });
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET
+    );
+    
+    oauth2Client.setCredentials({ 
+      access_token: accessToken,
+      refresh_token: refreshToken
+    });
+    
     const drive = google.drive({ version: 'v3', auth: oauth2Client });
     
     let driveOrderBy = `folder, ${sortKey} ${sortDir}`;
     
-    // LOGIKA BERANDA-SENTRIS (ROOT) & KATEGORI GLOBAL
     let query = "trashed = false";
-    if (category === 'Semua') {
-      query += " and 'root' in parents"; // Murni nampilin beranda depan doang
-    } else if (category === 'Video') {
-      query += " and mimeType contains 'video/'";
-    } else if (category === 'Music') {
-      query += " and mimeType contains 'audio/'";
-    } else if (category === 'Picture') {
-      query += " and mimeType contains 'image/'";
-    } else if (category === 'Document') {
-      query += " and (mimeType contains 'pdf' or mimeType contains 'document' or mimeType contains 'text' or mimeType contains 'spreadsheet')";
+    
+    if (folderId) {
+      // BONGKAR ISI FOLDER SPESIFIK
+      query += ` and '${folderId}' in parents`;
+      
+      // Filter kategori tetap bisa jalan di dalam folder
+      if (category === 'Video') query += " and mimeType contains 'video/'";
+      else if (category === 'Music') query += " and mimeType contains 'audio/'";
+      else if (category === 'Picture') query += " and mimeType contains 'image/'";
+      else if (category === 'Document') query += " and (mimeType contains 'pdf' or mimeType contains 'document' or mimeType contains 'text' or mimeType contains 'spreadsheet')";
+      
+    } else {
+      // LOGIKA BERANDA (ROOT)
+      if (category === 'Semua') {
+        query += " and 'root' in parents";
+      } else if (category === 'Video') {
+        query += " and mimeType contains 'video/'";
+      } else if (category === 'Music') {
+        query += " and mimeType contains 'audio/'";
+      } else if (category === 'Picture') {
+        query += " and mimeType contains 'image/'";
+      } else if (category === 'Document') {
+        query += " and (mimeType contains 'pdf' or mimeType contains 'document' or mimeType contains 'text' or mimeType contains 'spreadsheet')";
+      }
     }
     
     const res = await drive.files.list({
@@ -41,11 +71,10 @@ async function fetchFilesFromNode(accessToken: string, email: string, pageToken?
       ...file,
       ownerEmail: email,
     }));
-
     return { files: mappedFiles, nextPageToken: res.data.nextPageToken, ownerEmail: email };
   } catch (error) {
     console.error(`Gagal tarik file dari node ${email}:`, error);
-    return { files: [], nextPageToken: null, ownerEmail: email }; 
+    return { files: [], nextPageToken: null, ownerEmail: email };
   }
 }
 
@@ -62,22 +91,32 @@ export async function GET(req: NextRequest) {
     const sortKey = searchParams.get('sortKey') || 'modifiedTime';
     const sortDir = searchParams.get('sortDir') || 'desc';
     const category = searchParams.get('category') || 'Semua';
+    const folderId = searchParams.get('folderId');
+    const ownerEmail = searchParams.get('ownerEmail');
 
     const redisData = await redis.get(`linked_accounts:${adminEmail}`);
     const linkedAccounts = redisData ? JSON.parse(redisData) : {};
     let fetchPromises = [];
 
-    if (requestedDrive && requestedDrive !== 'all') {
+    // TAKTIK EFISIENSI: Kalau kita tau pemilik pastinya, tembak dia aja!
+    if (ownerEmail && linkedAccounts[ownerEmail] && linkedAccounts[ownerEmail].status === 'active') {
+      const acc = linkedAccounts[ownerEmail];
+      fetchPromises.push(fetchFilesFromNode(acc.accessToken, acc.refreshToken, ownerEmail, pageToken || undefined, sortKey, sortDir, category, folderId));
+    } 
+    // Kalau nggak tau pemiliknya tapi milih drive spesifik
+    else if (requestedDrive && requestedDrive !== 'all') {
       const acc = linkedAccounts[requestedDrive];
       if (acc && acc.status === 'active' && acc.accessToken) {
-        fetchPromises.push(fetchFilesFromNode(acc.accessToken, requestedDrive, pageToken || undefined, sortKey, sortDir, category));
-      } else {
-         return NextResponse.json({ error: 'Akun tidak valid atau tidak aktif' }, { status: 404 });
+        fetchPromises.push(fetchFilesFromNode(acc.accessToken, acc.refreshToken, requestedDrive, pageToken || undefined, sortKey, sortDir, category, folderId));
+      } else { 
+        return NextResponse.json({ error: 'Akun tidak valid atau tidak aktif' }, { status: 404 });
       }
-    } else {
+    } 
+    // Kalau aggregator murni (Semua Drive)
+    else {
       for (const [email, acc] of Object.entries<any>(linkedAccounts)) {
         if (acc.status === 'active' && acc.accessToken) {
-          fetchPromises.push(fetchFilesFromNode(acc.accessToken, email, undefined, sortKey, sortDir, category));
+          fetchPromises.push(fetchFilesFromNode(acc.accessToken, acc.refreshToken, email, undefined, sortKey, sortDir, category, folderId));
         }
       }
     }
@@ -96,11 +135,9 @@ export async function GET(req: NextRequest) {
     });
     
     const FOLDER_MIME = 'application/vnd.google-apps.folder';
-
     allFiles.sort((a, b) => {
       const isFolderA = a.mimeType === FOLDER_MIME;
       const isFolderB = b.mimeType === FOLDER_MIME;
-
       if (isFolderA && !isFolderB) return -1;
       if (!isFolderA && isFolderB) return 1;
 
